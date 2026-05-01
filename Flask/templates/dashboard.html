@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   </head>
 
   <body>
@@ -180,6 +181,11 @@
                       <div class="confidence-main" id="confidence-text">0%</div>
                       <div class="confidence-hint">High Confidence</div>
                     </div>
+                  </div>
+                  <div class="mt-3 text-center">
+                    <button class="btn btn-outline-success" type="button" id="download-report-btn" style="display:none; width:100%; border-radius:10px; font-weight:700; padding:10px;">
+                      <i class="fa-solid fa-file-pdf"></i> Download PDF Diagnostic Report
+                    </button>
                   </div>
                 </div>
               </div>
@@ -476,6 +482,7 @@
       const treatPreventiveEl = document.getElementById("treatment-preventive");
       const probabilitiesList = document.getElementById("probabilities-list");
       const historyTbody = document.getElementById("history-tbody");
+      const downloadReportBtn = document.getElementById("download-report-btn");
 
       const views = {
         detect: document.getElementById("view-detect"),
@@ -524,47 +531,112 @@
             
             // Crop-Specific Risk Analysis
             const selectedCrop = weatherCropSelect.value;
+            const temp = current.temperature_2m;
+            const hum = current.relative_humidity_2m;
+            const rain = current.precipitation;
+            
             let riskDetected = false;
+            let riskLevel = "low"; // "low", "moderate", "high"
             let pushTitle = "Smart Alert";
             let pushBody = "";
+            let riskTitleText = "Low Disease Risk";
+            let riskDescText = `Current weather conditions are stable. Low risk for fungal diseases for ${selectedCrop === 'Generic' ? 'your crops' : selectedCrop}.`;
 
-            if (current.relative_humidity_2m > 75 || current.precipitation > 0) {
-              riskDetected = true;
-              diseaseRiskAlert.className = "disease-risk-alert alert-high mt-3";
-              riskIconI.className = "fa-solid fa-triangle-exclamation";
-              
-              if (selectedCrop === "Apple") {
-                  riskTitle.textContent = "High Risk: Apple Scab & Black Rot";
-                  riskDesc.textContent = "High humidity detected. Spray Mancozeb or Neem oil recommended to prevent Apple Scab.";
-                  pushTitle = "🍎 Apple Alert";
-                  pushBody = "High humidity detected -> Apple Scab risk. Spray recommended.";
-              } else if (selectedCrop === "Tomato" || selectedCrop === "Potato") {
-                  riskTitle.textContent = `High Risk: ${selectedCrop} Late Blight`;
-                  riskDesc.textContent = "Precipitation or high humidity detected. Copper Fungicide spray recommended immediately to prevent blight.";
-                  pushTitle = `🍅 ${selectedCrop} Alert`;
-                  pushBody = `Rain/Humidity detected -> ${selectedCrop} Late Blight risk. Spray recommended.`;
-              } else if (selectedCrop === "Grape") {
-                  riskTitle.textContent = "High Risk: Grape Black Rot";
-                  riskDesc.textContent = "Wet canopy detected. Improve airflow and spray Mancozeb or Copper sulfate.";
-                  pushTitle = "🍇 Grape Alert";
-                  pushBody = "Wet weather -> Grape Black Rot risk. Spray recommended.";
-              } else if (selectedCrop === "Squash") {
-                  riskTitle.textContent = "High Risk: Powdery Mildew";
-                  riskDesc.textContent = "Humid conditions favor Powdery Mildew. Sulfur or Neem oil spray recommended.";
-                  pushTitle = "🥒 Squash Alert";
-                  pushBody = "High humidity -> Powdery Mildew risk. Spray recommended.";
-              } else {
-                  riskTitle.textContent = "High Risk of Fungal Diseases";
-                  riskDesc.textContent = "High humidity or precipitation detected. Perfect conditions for fungal diseases. Consider preventative spraying.";
-                  pushTitle = "⚠️ Farm Alert";
-                  pushBody = "High humidity detected -> Fungal disease risk. Spray recommended.";
-              }
+            if (selectedCrop === "Apple") {
+                if (temp >= 15 && temp <= 25 && (hum > 85 || rain > 0)) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Apple Scab & Cedar Apple Rust";
+                    riskDescText = `Ideal conditions for Apple Scab (${temp}°C & ${hum}% Humidity). Spray Mancozeb or Neem oil immediately.`;
+                } else if (hum > 80) {
+                    riskLevel = "moderate";
+                    riskTitleText = "Moderate Risk: Fungal Growth";
+                    riskDescText = "Humidity is rising. Monitor leaves for early signs of Scab or Rust.";
+                }
+            } else if (selectedCrop === "Tomato" || selectedCrop === "Potato") {
+                if (temp >= 10 && temp <= 24 && (hum > 90 || rain > 0)) {
+                    riskLevel = "high";
+                    riskTitleText = `Critical Risk: ${selectedCrop} Late Blight`;
+                    riskDescText = `Cool, wet weather (${temp}°C) is a severe trigger for Late Blight. Apply Copper Fungicide immediately.`;
+                } else if (temp > 24 && temp <= 29 && hum > 80) {
+                    riskLevel = "high";
+                    riskTitleText = `High Risk: ${selectedCrop} Early Blight`;
+                    riskDescText = `Warm, humid weather (${temp}°C) favors Early Blight. Prune lower leaves to improve airflow.`;
+                } else if (hum > 80) {
+                    riskLevel = "moderate";
+                    riskTitleText = "Moderate Risk: Blight";
+                    riskDescText = "Conditions are moderately favorable for blight. Maintain vigilance.";
+                }
+            } else if (selectedCrop === "Grape") {
+                if (temp >= 20 && temp <= 27 && (hum > 80 || rain > 0)) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Grape Black Rot & Esca";
+                    riskDescText = `Warm, wet conditions (${temp}°C) rapidly spread Black Rot. Ensure canopy airflow and apply Mancozeb.`;
+                }
+            } else if (selectedCrop === "Corn") {
+                if (temp >= 18 && temp <= 27 && hum > 85) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Northern Leaf Blight & Rust";
+                    riskDescText = `Heavy dew and moderate temps favor leaf blights. Consider preventive fungicidal applications.`;
+                }
+            } else if (selectedCrop === "Peach" || selectedCrop === "Cherry") {
+                if (temp > 20 && (hum > 80 || rain > 0)) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Bacterial Spot & Powdery Mildew";
+                    riskDescText = "Warm, wet weather triggers bacterial spots. Avoid overhead irrigation and apply copper sprays.";
+                }
+            } else if (selectedCrop === "Squash") {
+                if (temp >= 20 && temp <= 27 && hum > 80) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Powdery Mildew";
+                    riskDescText = "Humid conditions favor Powdery Mildew even without rain. Sulfur or Neem oil spray recommended.";
+                }
+            } else if (selectedCrop === "Strawberry") {
+                if (temp >= 15 && temp <= 25 && (hum > 85 || rain > 0)) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk: Leaf Scorch";
+                    riskDescText = "Wet conditions favor fungal Leaf Scorch. Ensure proper spacing for airflow.";
+                }
             } else {
-              diseaseRiskAlert.className = "disease-risk-alert alert-low mt-3";
-              riskIconI.className = "fa-solid fa-shield-halved";
-              riskTitle.textContent = "Low Disease Risk";
-              riskDesc.textContent = `Current weather conditions are stable. Low risk for humidity-driven fungal diseases for ${selectedCrop === 'Generic' ? 'your crops' : selectedCrop}.`;
+                // Generic or unhandled crop
+                if (hum > 85 || rain > 0) {
+                    riskLevel = "high";
+                    riskTitleText = "High Risk of Fungal Diseases";
+                    riskDescText = "High humidity or precipitation detected. Perfect conditions for general fungal diseases. Consider preventative spraying.";
+                } else if (hum > 75) {
+                    riskLevel = "moderate";
+                    riskTitleText = "Moderate Fungal Risk";
+                    riskDescText = "Humidity is elevated. Keep an eye out for fungal spots.";
+                }
             }
+
+            if (riskLevel === "high") {
+                riskDetected = true;
+                diseaseRiskAlert.className = "disease-risk-alert alert-high mt-3";
+                diseaseRiskAlert.style.background = "";
+                diseaseRiskAlert.style.border = "";
+                riskIconI.className = "fa-solid fa-triangle-exclamation";
+                riskIconI.style.color = "";
+                riskTitle.style.color = "";
+                pushTitle = `🚨 ${selectedCrop} Alert: High Risk`;
+                pushBody = riskTitleText;
+            } else if (riskLevel === "moderate") {
+                diseaseRiskAlert.className = "disease-risk-alert alert-low mt-3";
+                diseaseRiskAlert.style.background = "rgba(245, 158, 11, 0.1)";
+                diseaseRiskAlert.style.border = "1px solid rgba(245, 158, 11, 0.3)";
+                riskIconI.className = "fa-solid fa-bell";
+                riskIconI.style.color = "#d97706";
+                riskTitle.style.color = "#b45309";
+            } else {
+                diseaseRiskAlert.className = "disease-risk-alert alert-low mt-3";
+                diseaseRiskAlert.style.background = "";
+                diseaseRiskAlert.style.border = "";
+                riskIconI.className = "fa-solid fa-shield-halved";
+                riskIconI.style.color = "";
+                riskTitle.style.color = "";
+            }
+
+            riskTitle.textContent = riskTitleText;
+            riskDesc.textContent = riskDescText;
 
             // Push Notification
             if (riskDetected && ("Notification" in window)) {
@@ -913,6 +985,7 @@
         treatOrganicEl.textContent = "-";
         treatDosageEl.textContent = "-";
         treatPreventiveEl.textContent = "-";
+        downloadReportBtn.style.display = "none";
         // History stays.
       });
 
@@ -988,6 +1061,8 @@
             heatmapViz.style.display = "block";
           }
 
+          downloadReportBtn.style.display = "block";
+
           // Refresh history table.
           await loadHistory();
         } catch (err) {
@@ -996,6 +1071,82 @@
           predictBtn.disabled = false;
           predictBtn.innerHTML = oldText;
         }
+      });
+
+      downloadReportBtn.addEventListener("click", () => {
+        const reportDiv = document.createElement("div");
+        reportDiv.style.padding = "40px";
+        reportDiv.style.fontFamily = "Arial, sans-serif";
+        reportDiv.style.color = "#333";
+        
+        const isHealthy = predictedLabel.textContent.toLowerCase().includes("healthy");
+        const statusColor = isHealthy ? "#27ae60" : "#e74c3c";
+
+        reportDiv.innerHTML = `
+          <div style="text-align:center; border-bottom: 2px solid #168142; padding-bottom: 20px; margin-bottom: 30px;">
+            <h1 style="color: #0a2e18; margin: 0; font-size: 36px;">Patho Plant</h1>
+            <h3 style="color: #168142; margin: 5px 0 0 0;">Official Diagnostic Report</h3>
+            <p style="color: #7f8c8d; margin-top: 10px;">Date: ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div style="display: flex; gap: 30px; margin-bottom: 30px;">
+            <div style="flex: 1;">
+              <h4 style="color: #0a2e18; margin-bottom: 10px;">Uploaded Leaf Image</h4>
+              <img src="${origViz.src}" style="width: 100%; border-radius: 8px; border: 1px solid #ccc; max-height: 250px; object-fit: cover;" />
+            </div>
+            <div style="flex: 1;">
+              <h4 style="color: #0a2e18; margin-bottom: 10px;">Heatmap Analysis</h4>
+              <img src="${heatmapViz.src}" style="width: 100%; border-radius: 8px; border: 1px solid #ccc; max-height: 250px; object-fit: cover; display: ${heatmapViz.style.display === 'none' ? 'none' : 'block'};" />
+            </div>
+          </div>
+
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 5px solid ${statusColor}; margin-bottom: 30px;">
+            <h2 style="margin: 0 0 10px 0; color: ${statusColor};">Diagnosis: ${predictedLabel.textContent}</h2>
+            <p style="margin: 0; font-size: 18px;"><strong>Confidence Score:</strong> ${confidenceText.textContent}</p>
+            <p style="margin: 5px 0 0 0; font-size: 16px; color: #555;"><strong>Scientific Name:</strong> ${scientificName.textContent}</p>
+            <p style="margin: 5px 0 0 0; font-size: 16px; color: #555;"><strong>Severity Level:</strong> ${severityLevel.textContent}</p>
+          </div>
+
+          <div style="margin-bottom: 30px;">
+            <h3 style="color: #0a2e18; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Prescribed Treatment Protocols</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+              <tr><td style="padding: 10px; border: 1px solid #ddd; background: #fdfdfd; font-weight: bold; width: 30%;">Chemical Solution</td><td style="padding: 10px; border: 1px solid #ddd;">${treatChemicalEl.textContent}</td></tr>
+              <tr><td style="padding: 10px; border: 1px solid #ddd; background: #fdfdfd; font-weight: bold;">Organic Alternative</td><td style="padding: 10px; border: 1px solid #ddd;">${treatOrganicEl.textContent}</td></tr>
+              <tr><td style="padding: 10px; border: 1px solid #ddd; background: #fdfdfd; font-weight: bold;">Dosage & Timing</td><td style="padding: 10px; border: 1px solid #ddd;">${treatDosageEl.textContent}</td></tr>
+              <tr><td style="padding: 10px; border: 1px solid #ddd; background: #fdfdfd; font-weight: bold;">Preventive Measures</td><td style="padding: 10px; border: 1px solid #ddd;">${treatPreventiveEl.textContent}</td></tr>
+            </table>
+          </div>
+
+          <div>
+            <h3 style="color: #0a2e18; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Symptoms Observed</h3>
+            <p style="color: #333; line-height: 1.6; background: #fefefe; border: 1px dashed #bbb; padding: 15px; border-radius: 5px;">${symptomsEl.textContent}</p>
+          </div>
+          
+          <div style="text-align: center; margin-top: 50px; font-size: 12px; color: #aaa;">
+            Generated by Patho Plant - Advanced Agricultural Intelligence System
+          </div>
+        `;
+
+        const opt = {
+          margin:       0.5,
+          filename:     `PathoPlant_Report_${predictedLabel.textContent.replace(/\s+/g, '_')}.pdf`,
+          image:        { type: 'jpeg', quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true },
+          jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        const oldBtnText = downloadReportBtn.innerHTML;
+        downloadReportBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating PDF...';
+        downloadReportBtn.disabled = true;
+
+        html2pdf().set(opt).from(reportDiv).save().then(() => {
+          downloadReportBtn.innerHTML = oldBtnText;
+          downloadReportBtn.disabled = false;
+        }).catch(err => {
+          alert("Error generating PDF");
+          downloadReportBtn.innerHTML = oldBtnText;
+          downloadReportBtn.disabled = false;
+        });
       });
 
       // Initial history load
