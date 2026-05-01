@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Plant Disease Detection</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles/dashboard.css') }}"
+    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <i class="fa-solid fa-seedling"></i>
+          </div>
+          <div class="brand-title">
+            <div class="brand-name">PLANT DISEASE</div>
+            <div class="brand-sub">DETECTION</div>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <button class="side-link active" type="button" data-action="detect">
+            <i class="fa-solid fa-stethoscope"></i>
+            <span>Detect Disease</span>
+          </button>
+          <button class="side-link" type="button" data-action="history">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>History</span>
+          </button>
+          <button class="side-link" type="button" data-action="weather">
+            <i class="fa-solid fa-cloud-sun-rain"></i>
+            <span>Weather Insights</span>
+          </button>
+          <button class="side-link" type="button" data-action="map">
+            <i class="fa-solid fa-earth-americas"></i>
+            <span>Geo-Tracking</span>
+          </button>
+          <button class="side-link" type="button" data-action="about">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>About</span>
+          </button>
+        </nav>
+
+        <div class="side-footer">
+          <div class="model-status">
+            <div class="status-row">
+              <span class="status-dot"></span>
+              <span class="status-text">Model Status</span>
+            </div>
+            <div class="status-ready">Ready</div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <div class="topbar-left">
+            <div class="topbar-title">PLANT DISEASE <span>DETECTION</span></div>
+            <div class="topbar-sub">CNN + LSTM Based Deep Learning System</div>
+          </div>
+          <div class="topbar-right">
+            <div class="topbar-chip">
+              <i class="fa-regular fa-calendar"></i>
+              <span id="page-timestamp">Loading...</span>
+            </div>
+            {% if username %}
+            <a class="auth-action" href="{{ url_for('logout') }}">Logout</a>
+            {% else %}
+            <a class="auth-action" href="{{ url_for('login') }}">Login</a>
+            {% endif %}
+          </div>
+        </header>
+
+        <section class="view" id="view-detect">
+          <div class="grid-2">
+            <!-- LEFT COLUMN -->
+            <div class="card panel-card">
+              <h2 class="panel-title title-gray">
+                <i class="fa-solid fa-camera"></i>
+                DETECTION INTERFACE
+              </h2>
+              <div class="panel-body">
+                <div class="inner-card">
+                  <div class="inner-card-title title-green">1. INPUT LEAF IMAGE</div>
+                  <div class="inner-card-body">
+                    <div
+                      class="dropzone"
+                      id="dropzone"
+                      tabindex="0"
+                      role="button"
+                      aria-label="Upload leaf image"
+                    >
+                      <div class="dropzone-inner">
+                        <div class="dropzone-icon">
+                          <i class="fa-regular fa-image"></i>
+                        </div>
+                        <div class="dropzone-text">
+                          Upload or Capture a Leaf Image
+                          <div class="dropzone-hint">Drag & Drop or choose a file</div>
+                        </div>
+                        <label class="btn btn-choose">
+                          <input
+                            id="file-input"
+                            type="file"
+                            accept="image/*"
+                            hidden
+                          />
+                          Choose File
+                        </label>
+                      </div>
+                    </div>
+
+                    <div class="mt-3 upload-preview-row">
+                      <div class="preview-meta">
+                        <div class="preview-label">Selected File:</div>
+                        <div class="preview-name" id="selected-filename">None</div>
+                      </div>
+                      <div class="preview-img-wrap">
+                        <img
+                          id="preview-img"
+                          alt="Leaf preview"
+                          class="preview-img"
+                          style="display: none"
+                        />
+                      </div>
+                    </div>
+
+                    <div class="mt-3 d-flex gap-2">
+                      <button class="btn btn-reset" type="button" id="reset-btn">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        Reset
+                      </button>
+                      <button class="btn btn-predict" type="button" id="predict-btn">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        Predict Disease
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN -->
+            <div class="panel-card" style="border:none; box-shadow:none; background:transparent;">
+              <div class="inner-card">
+                <div class="inner-card-title title-blue">
+                  <i class="fa-solid fa-flask"></i> PREDICTION RESULT
+                </div>
+                <div class="inner-card-body">
+                  <div class="result-top">
+                    <div class="result-disease">
+                      <div class="result-sub">Predicted Disease</div>
+                      <div class="result-name" id="predicted-label">-</div>
+                      <div class="result-badge" id="predicted-badge">
+                        <span class="badge-dot"></span>
+                        Diseased
+                      </div>
+                    </div>
+
+                    <div class="result-confidence">
+                      <div class="confidence-sub">Confidence Score</div>
+                      <div class="confidence-main" id="confidence-text">0%</div>
+                      <div class="confidence-hint">High Confidence</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="grid-2-inner mt-3">
+                <div class="inner-card visualization-card">
+                  <div class="inner-card-title title-blue"><i class="fa-solid fa-eye"></i> Visualization</div>
+                  <div class="viz-grid">
+                    <div class="viz-item">
+                      <div class="viz-label green">Original Leaf</div>
+                      <img
+                        id="orig-viz"
+                        alt="Original leaf"
+                        class="viz-img"
+                        style="display:none"
+                      />
+                    </div>
+                    <div class="viz-item">
+                      <div class="viz-label blue">Processed / Heatmap</div>
+                      <img
+                        id="heatmap-viz"
+                        alt="Heatmap overlay"
+                        class="viz-img"
+                        style="display:none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="inner-card disease-info-card">
+                  <div class="inner-card-title title-light-blue">
+                    <i class="fa-solid fa-info-circle"></i> Disease Information
+                  </div>
+                  <div class="inner-card-body" style="padding: 10px;">
+                    <div class="info-row">
+                      <div class="info-key">Scientific Name</div>
+                      <div class="info-val" id="scientific-name">-</div>
+                    </div>
+                    <div class="info-row">
+                      <div class="info-key">Severity Level</div>
+                      <div class="info-val" id="severity-level">-</div>
+                    </div>
+                    <hr style="margin: 10px 0; border-color: #ecf0f1;">
+                    <div class="info-row">
+                      <div class="info-key"><i class="fa-solid fa-flask" style="color:#e74c3c;"></i> Chemical Solution</div>
+                      <div class="info-val info-pre" id="treatment-chemical">-</div>
+                    </div>
+                    <div class="info-row">
+                      <div class="info-key"><i class="fa-solid fa-leaf" style="color:#27ae60;"></i> Organic Alternative</div>
+                      <div class="info-val info-pre" id="treatment-organic">-</div>
+                    </div>
+                    <div class="info-row">
+                      <div class="info-key"><i class="fa-regular fa-clock" style="color:#3498db;"></i> Dosage & Timing</div>
+                      <div class="info-val info-pre" id="treatment-dosage">-</div>
+                    </div>
+                    <div class="info-row">
+                      <div class="info-key"><i class="fa-solid fa-shield-virus" style="color:#8e44ad;"></i> Preventive Measures</div>
+                      <div class="info-val info-pre" id="treatment-preventive">-</div>
+                    </div>
+                    <hr style="margin: 10px 0; border-color: #ecf0f1;">
+                    <div class="info-row">
+                      <div class="info-key">Symptoms</div>
+                      <div class="info-val info-pre" id="symptoms">-</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inner-card probabilities-card mt-3">
+                <div class="inner-card-title title-gray"><i class="fa-solid fa-chart-bar"></i> Top Probabilities</div>
+                <div class="inner-card-body" style="padding: 10px;">
+                   <div id="probabilities-list" class="prob-list"></div>
+                </div>
+              </div>
+            </div> <!-- End of RIGHT COLUMN -->
+          </div> <!-- End of grid-2 -->
+
+          <!-- Full Width Recent Predictions at bottom -->
+          <div class="inner-card history-card mt-3">
+            <div class="inner-card-title title-gray"><i class="fa-regular fa-clock"></i> Recent Predictions</div>
+            <div class="inner-card-body history-table-wrap" style="padding:0;">
+              <table class="history-table" style="margin:0;">
+                <thead>
+                  <tr>
+                    <th style="width:50px;">#</th>
+                    <th>Preview</th>
+                    <th>Predicted Disease</th>
+                    <th style="width:120px;">Confidence</th>
+                    <th style="width:180px;">Time</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody">
+                  <tr>
+                    <td colspan="5" class="text-muted" style="padding: 14px;">No history yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view weather-view" id="view-weather" hidden>
+          <div class="card weather-card">
+            <div class="weather-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+              <h2 class="panel-title" style="margin: 0;">
+                <i class="fa-solid fa-cloud-sun-rain"></i>
+                Weather Insights & Disease Risk
+              </h2>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="weather-crop-select" class="form-select" style="width: 180px; display: inline-block;">
+                  <option value="Generic">All Crops</option>
+                  <option value="Apple">Apple</option>
+                  <option value="Cherry">Cherry</option>
+                  <option value="Corn">Corn</option>
+                  <option value="Grape">Grape</option>
+                  <option value="Peach">Peach</option>
+                  <option value="Pepper">Pepper</option>
+                  <option value="Potato">Potato</option>
+                  <option value="Squash">Squash</option>
+                  <option value="Strawberry">Strawberry</option>
+                  <option value="Tomato">Tomato</option>
+                </select>
+                <button class="btn btn-predict" type="button" id="get-weather-btn" style="padding: 10px 16px;">
+                  <i class="fa-solid fa-location-crosshairs"></i>
+                  Get Weather
+                </button>
+              </div>
+            </div>
+            
+            <div class="weather-content mt-4" id="weather-content" style="display:none;">
+              <div class="weather-grid">
+                <div class="weather-item">
+                  <div class="weather-label">Temperature</div>
+                  <div class="weather-val" id="w-temp">-</div>
+                </div>
+                <div class="weather-item">
+                  <div class="weather-label">Relative Humidity</div>
+                  <div class="weather-val" id="w-hum">-</div>
+                </div>
+                <div class="weather-item">
+                  <div class="weather-label">Precipitation</div>
+                  <div class="weather-val" id="w-precip">-</div>
+                </div>
+              </div>
+
+              <div class="disease-risk-alert mt-4" id="disease-risk-alert">
+                <div class="risk-icon"><i class="fa-solid fa-shield-heart" id="risk-icon-i"></i></div>
+                <div class="risk-text">
+                  <div class="risk-title" id="risk-title">Checking Risk...</div>
+                  <div class="risk-desc" id="risk-desc">-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view history-view" id="view-history" hidden>
+          <div class="card panel-card">
+            <h2 class="panel-title">
+              <i class="fa-solid fa-chart-pie"></i>
+              Farmer Analytics Dashboard
+            </h2>
+            <div class="grid-2 mt-4">
+              <div class="card inner-card">
+                <div class="inner-card-title">Disease Distribution</div>
+                <div style="position: relative; height:250px; width:100%; display: flex; justify-content: center;">
+                  <canvas id="diseaseChart"></canvas>
+                </div>
+              </div>
+              <div class="card inner-card">
+                <div class="inner-card-title">Recent Activity</div>
+                <div class="weather-grid mt-3" id="analytics-stats">
+                  <div class="weather-item">
+                    <div class="weather-label">Total Scans</div>
+                    <div class="weather-val" id="stat-total-scans" style="color: #2c3e50;">0</div>
+                  </div>
+                  <div class="weather-item">
+                    <div class="weather-label">Healthy Plants</div>
+                    <div class="weather-val" id="stat-healthy" style="color: #27ae60;">0</div>
+                  </div>
+                  <div class="weather-item">
+                    <div class="weather-label">Diseased Plants</div>
+                    <div class="weather-val" id="stat-diseased" style="color: #e74c3c;">0</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="card inner-card mt-4">
+              <div class="inner-card-title">Full Historical Records</div>
+              <div class="history-table-wrap">
+                <table class="history-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 80px;">Preview</th>
+                      <th>Predicted Disease</th>
+                      <th>Region</th>
+                      <th>Confidence</th>
+                      <th>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody id="farmer-history-tbody">
+                    <tr><td colspan="5" class="text-muted">No records found.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view map-view" id="view-map" hidden>
+          <div class="card panel-card">
+            <h2 class="panel-title">
+              <i class="fa-solid fa-earth-americas"></i>
+              Agricultural Intelligence & Geo-Tracking
+            </h2>
+            <div class="map-desc mb-3" style="color:#7f8c8d;">
+              Visualize disease spread across different geographical regions in real-time.
+            </div>
+            <div id="disease-map" style="height: 500px; width: 100%; border-radius: 8px; z-index: 1;"></div>
+          </div>
+        </section>
+
+        <section class="view about-view" id="view-about" hidden>
+          <div class="about-hero animated-fade-in">
+            <h1 class="about-title">Patho Plant</h1>
+            <p class="about-subtitle">Next-Generation Agricultural Intelligence Platform</p>
+          </div>
+          
+          <div class="about-grid mt-4">
+            <div class="about-feature-card animated-slide-up" style="animation-delay: 0.1s;">
+              <div class="feature-icon"><i class="fa-solid fa-brain"></i></div>
+              <h3>Deep Learning Core</h3>
+              <p>Powered by a custom-trained ResNet34 CNN, achieving over 85.6% diagnostic accuracy across 38 distinct plant diseases.</p>
+            </div>
+            
+            <div class="about-feature-card animated-slide-up" style="animation-delay: 0.2s;">
+              <div class="feature-icon"><i class="fa-solid fa-prescription-bottle-medical"></i></div>
+              <h3>Smart Treatments</h3>
+              <p>Actionable chemical and organic treatment plans tailored to the exact pathogen, including dosage and prevention strategies.</p>
+            </div>
+            
+            <div class="about-feature-card animated-slide-up" style="animation-delay: 0.3s;">
+              <div class="feature-icon"><i class="fa-solid fa-cloud-sun-rain"></i></div>
+              <h3>Predictive Weather</h3>
+              <p>Real-time Open-Meteo integration alerts you to impending high-humidity conditions to preemptively stop fungal outbreaks.</p>
+            </div>
+            
+            <div class="about-feature-card animated-slide-up" style="animation-delay: 0.4s;">
+              <div class="feature-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+              <h3>Geo-Spatial Analytics</h3>
+              <p>Leaflet-powered interactive heatmaps tracking regional disease spread and historical farmer analytics.</p>
+            </div>
+          </div>
+          
+          <div class="about-tech-stack mt-4 animated-fade-in" style="animation-delay: 0.5s;">
+            <div class="tech-title"><i class="fa-solid fa-microchip"></i> Technology Stack</div>
+            <div class="tech-tags">
+              <span class="tech-tag"><i class="fa-brands fa-python"></i> PyTorch</span>
+              <span class="tech-tag"><i class="fa-solid fa-pepper-hot"></i> Flask</span>
+              <span class="tech-tag"><i class="fa-solid fa-database"></i> PyMongo</span>
+              <span class="tech-tag"><i class="fa-solid fa-map"></i> Leaflet.js</span>
+              <span class="tech-tag"><i class="fa-solid fa-chart-pie"></i> Chart.js</span>
+              <span class="tech-tag"><i class="fa-brands fa-js"></i> Vanilla JS</span>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const pageTs = document.getElementById("page-timestamp");
+      pageTs.textContent = new Date().toLocaleString();
+
+      const dropzone = document.getElementById("dropzone");
+      const fileInput = document.getElementById("file-input");
+      const selectedFilename = document.getElementById("selected-filename");
+      const previewImg = document.getElementById("preview-img");
+      const origViz = document.getElementById("orig-viz");
+      const heatmapViz = document.getElementById("heatmap-viz");
+
+      const resetBtn = document.getElementById("reset-btn");
+      const predictBtn = document.getElementById("predict-btn");
+
+      const predictedLabel = document.getElementById("predicted-label");
+      const confidenceText = document.getElementById("confidence-text");
+      const predictedBadge = document.getElementById("predicted-badge");
+      const scientificName = document.getElementById("scientific-name");
+      const severityLevel = document.getElementById("severity-level");
+      const symptomsEl = document.getElementById("symptoms");
+      const treatChemicalEl = document.getElementById("treatment-chemical");
+      const treatOrganicEl = document.getElementById("treatment-organic");
+      const treatDosageEl = document.getElementById("treatment-dosage");
+      const treatPreventiveEl = document.getElementById("treatment-preventive");
+      const probabilitiesList = document.getElementById("probabilities-list");
+      const historyTbody = document.getElementById("history-tbody");
+
+      const views = {
+        detect: document.getElementById("view-detect"),
+        about: document.getElementById("view-about"),
+        weather: document.getElementById("view-weather"),
+        history: document.getElementById("view-history"),
+        map: document.getElementById("view-map"),
+      };
+
+      // Weather Logic
+      const getWeatherBtn = document.getElementById("get-weather-btn");
+      const weatherCropSelect = document.getElementById("weather-crop-select");
+      const weatherContent = document.getElementById("weather-content");
+      const wTemp = document.getElementById("w-temp");
+      const wHum = document.getElementById("w-hum");
+      const wPrecip = document.getElementById("w-precip");
+      const diseaseRiskAlert = document.getElementById("disease-risk-alert");
+      const riskTitle = document.getElementById("risk-title");
+      const riskDesc = document.getElementById("risk-desc");
+      const riskIconI = document.getElementById("risk-icon-i");
+
+      getWeatherBtn.addEventListener("click", () => {
+        if (!navigator.geolocation) {
+          alert("Geolocation is not supported by your browser");
+          return;
+        }
+
+        getWeatherBtn.disabled = true;
+        getWeatherBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Locating...';
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          
+          try {
+            getWeatherBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Fetching...';
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,precipitation&timezone=auto`);
+            const data = await res.json();
+            
+            const current = data.current;
+            wTemp.textContent = current.temperature_2m + " " + data.current_units.temperature_2m;
+            wHum.textContent = current.relative_humidity_2m + " " + data.current_units.relative_humidity_2m;
+            wPrecip.textContent = current.precipitation + " " + data.current_units.precipitation;
+            
+            weatherContent.style.display = "block";
+            
+            // Crop-Specific Risk Analysis
+            const selectedCrop = weatherCropSelect.value;
+            let riskDetected = false;
+            let pushTitle = "Smart Alert";
+            let pushBody = "";
+
+            if (current.relative_humidity_2m > 75 || current.precipitation > 0) {
+              riskDetected = true;
+              diseaseRiskAlert.className = "disease-risk-alert alert-high mt-3";
+              riskIconI.className = "fa-solid fa-triangle-exclamation";
+              
+              if (selectedCrop === "Apple") {
+                  riskTitle.textContent = "High Risk: Apple Scab & Black Rot";
+                  riskDesc.textContent = "High humidity detected. Spray Mancozeb or Neem oil recommended to prevent Apple Scab.";
+                  pushTitle = "🍎 Apple Alert";
+                  pushBody = "High humidity detected -> Apple Scab risk. Spray recommended.";
+              } else if (selectedCrop === "Tomato" || selectedCrop === "Potato") {
+                  riskTitle.textContent = `High Risk: ${selectedCrop} Late Blight`;
+                  riskDesc.textContent = "Precipitation or high humidity detected. Copper Fungicide spray recommended immediately to prevent blight.";
+                  pushTitle = `🍅 ${selectedCrop} Alert`;
+                  pushBody = `Rain/Humidity detected -> ${selectedCrop} Late Blight risk. Spray recommended.`;
+              } else if (selectedCrop === "Grape") {
+                  riskTitle.textContent = "High Risk: Grape Black Rot";
+                  riskDesc.textContent = "Wet canopy detected. Improve airflow and spray Mancozeb or Copper sulfate.";
+                  pushTitle = "🍇 Grape Alert";
+                  pushBody = "Wet weather -> Grape Black Rot risk. Spray recommended.";
+              } else if (selectedCrop === "Squash") {
+                  riskTitle.textContent = "High Risk: Powdery Mildew";
+                  riskDesc.textContent = "Humid conditions favor Powdery Mildew. Sulfur or Neem oil spray recommended.";
+                  pushTitle = "🥒 Squash Alert";
+                  pushBody = "High humidity -> Powdery Mildew risk. Spray recommended.";
+              } else {
+                  riskTitle.textContent = "High Risk of Fungal Diseases";
+                  riskDesc.textContent = "High humidity or precipitation detected. Perfect conditions for fungal diseases. Consider preventative spraying.";
+                  pushTitle = "⚠️ Farm Alert";
+                  pushBody = "High humidity detected -> Fungal disease risk. Spray recommended.";
+              }
+            } else {
+              diseaseRiskAlert.className = "disease-risk-alert alert-low mt-3";
+              riskIconI.className = "fa-solid fa-shield-halved";
+              riskTitle.textContent = "Low Disease Risk";
+              riskDesc.textContent = `Current weather conditions are stable. Low risk for humidity-driven fungal diseases for ${selectedCrop === 'Generic' ? 'your crops' : selectedCrop}.`;
+            }
+
+            // Push Notification
+            if (riskDetected && ("Notification" in window)) {
+                if (Notification.permission === "granted") {
+                    new Notification(pushTitle, { body: pushBody });
+                } else if (Notification.permission !== "denied") {
+                    Notification.requestPermission().then(permission => {
+                        if (permission === "granted") {
+                            new Notification(pushTitle, { body: pushBody });
+                        }
+                    });
+                }
+            }
+          } catch (err) {
+            alert("Failed to fetch weather data.");
+          } finally {
+            getWeatherBtn.disabled = false;
+            getWeatherBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Refresh Weather';
+          }
+        }, () => {
+          alert("Unable to retrieve your location. Please check browser permissions.");
+          getWeatherBtn.disabled = false;
+          getWeatherBtn.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Get My Weather';
+        });
+      });
+
+      let currentFile = null;
+      let previewUrl = null;
+
+      function formatDiseaseLabel(raw) {
+        try {
+          if (!raw) return "-";
+          const parts = String(raw).split("___");
+          const name = parts.length === 2 ? parts[1] : raw;
+          return name.replace(/_/g, " ").replace(/\s+/g, " ").trim().toUpperCase();
+        } catch {
+          return raw;
+        }
+      }
+
+      function setBadge(predictedRaw) {
+        const isHealthy = String(predictedRaw || "").toLowerCase().includes("healthy");
+        if (isHealthy) {
+          predictedBadge.innerHTML = '<span class="badge-dot" style="background:#6be675; box-shadow: 0 0 0 4px rgba(107, 230, 117, 0.18);"></span>Healthy';
+          predictedBadge.style.background = "rgba(107, 230, 117, 0.14)";
+          predictedBadge.style.borderColor = "rgba(107, 230, 117, 0.30)";
+        } else {
+          predictedBadge.innerHTML = '<span class="badge-dot"></span>Diseased';
+          predictedBadge.style.background = "rgba(214, 51, 132, 0.18)";
+          predictedBadge.style.borderColor = "rgba(214, 51, 132, 0.35)";
+        }
+      }
+
+      function confidenceHintFromPct(pct) {
+        if (pct >= 90) return "High Confidence";
+        if (pct >= 70) return "Moderate Confidence";
+        return "Low Confidence";
+      }
+
+      function setActiveLink(action) {
+        document.querySelectorAll(".side-link").forEach((el) => {
+          el.classList.toggle("active", el.dataset.action === action);
+        });
+      }
+
+      function showView(action) {
+        Object.values(views).forEach((v) => (v.hidden = true));
+        if (views[action]) views[action].hidden = false;
+        setActiveLink(action);
+        
+        if (action === "map" && mapInstance) {
+          setTimeout(() => { mapInstance.invalidateSize(); }, 100);
+        }
+      }
+
+      document.querySelectorAll(".side-link[data-action]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          showView(btn.dataset.action);
+        });
+      });
+
+      function setPreview(file) {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = URL.createObjectURL(file);
+        selectedFilename.textContent = file.name;
+        previewImg.src = previewUrl;
+        previewImg.style.display = "block";
+        origViz.src = previewUrl;
+        origViz.style.display = "block";
+        heatmapViz.style.display = "none";
+      }
+
+      dropzone.addEventListener("click", () => fileInput.click());
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+      dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) {
+          currentFile = file;
+          setPreview(file);
+        }
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        currentFile = file;
+        setPreview(file);
+      });
+
+      function renderProbabilities(top_predictions) {
+        probabilitiesList.innerHTML = "";
+        const colors = ["#20c997", "#0d6efd", "#6610f2", "#d63384", "#fd7e14"];
+
+        top_predictions.forEach((p, idx) => {
+          const pct = Math.max(0, Math.min(100, p.probability));
+          const row = document.createElement("div");
+          row.className = "prob-row";
+
+          const barOuter = document.createElement("div");
+          barOuter.className = "prob-bar-outer";
+          const bar = document.createElement("div");
+          bar.className = "prob-bar-inner";
+          bar.style.width = pct + "%";
+          bar.style.background = colors[idx % colors.length];
+
+          const label = document.createElement("div");
+          label.className = "prob-label";
+          label.textContent = p.label;
+
+          const value = document.createElement("div");
+          value.className = "prob-value";
+          value.textContent = pct.toFixed(1) + "%";
+
+          barOuter.appendChild(bar);
+          row.appendChild(label);
+          row.appendChild(barOuter);
+          row.appendChild(value);
+          probabilitiesList.appendChild(row);
+        });
+      }
+
+      function renderHistory(history) {
+        if (!history || history.length === 0) {
+          historyTbody.innerHTML =
+            '<tr><td colspan="5" class="text-muted">No history yet.</td></tr>';
+          return;
+        }
+
+        historyTbody.innerHTML = "";
+        history.forEach((rec, idx) => {
+          const tr = document.createElement("tr");
+
+          const tdIdx = document.createElement("td");
+          tdIdx.textContent = idx + 1;
+
+          const tdPrev = document.createElement("td");
+          tdPrev.innerHTML = '<img class="history-thumb" src="data:image/png;base64,' + rec.thumbnail_b64 + '" />';
+
+          const tdLabel = document.createElement("td");
+          tdLabel.textContent = rec.predicted_label;
+
+          const tdConf = document.createElement("td");
+          tdConf.textContent = (rec.confidence || 0).toFixed(1) + "%";
+
+          const tdTime = document.createElement("td");
+          tdTime.textContent = rec.time;
+
+          tr.appendChild(tdIdx);
+          tr.appendChild(tdPrev);
+          tr.appendChild(tdLabel);
+          tr.appendChild(tdConf);
+          tr.appendChild(tdTime);
+
+          historyTbody.appendChild(tr);
+        });
+      }
+
+      let chartInstance = null;
+      let mapInstance = null;
+      let markersLayer = null;
+
+      function renderFarmerDashboard(history) {
+        const farmerTbody = document.getElementById("farmer-history-tbody");
+        farmerTbody.innerHTML = "";
+        
+        // Initialize Map if not present
+        if (!mapInstance) {
+          mapInstance = L.map('disease-map').setView([20.0, 0.0], 2);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+          }).addTo(mapInstance);
+          markersLayer = L.layerGroup().addTo(mapInstance);
+        }
+        
+        markersLayer.clearLayers();
+
+        if (!history || history.length === 0) {
+          farmerTbody.innerHTML = '<tr><td colspan="5" class="text-muted">No records found.</td></tr>';
+          return;
+        }
+
+        let healthy = 0;
+        let diseased = 0;
+        const diseaseCounts = {};
+
+        history.forEach((rec) => {
+          // Add to Farmer history table
+          const tr = document.createElement("tr");
+
+          const tdPrev = document.createElement("td");
+          if (rec.thumbnail_b64) {
+            const img = document.createElement("img");
+            img.src = "data:image/png;base64," + rec.thumbnail_b64;
+            img.className = "history-thumb";
+            tdPrev.appendChild(img);
+          } else {
+            tdPrev.textContent = "N/A";
+          }
+
+          const tdLabel = document.createElement("td");
+          tdLabel.textContent = formatDiseaseLabel(rec.predicted_label);
+
+          const tdRegion = document.createElement("td");
+          tdRegion.textContent = rec.region || "Unknown";
+
+          const tdConf = document.createElement("td");
+          tdConf.textContent = parseFloat(rec.confidence).toFixed(1) + "%";
+
+          const tdTime = document.createElement("td");
+          tdTime.textContent = rec.time;
+
+          tr.appendChild(tdPrev);
+          tr.appendChild(tdLabel);
+          tr.appendChild(tdRegion);
+          tr.appendChild(tdConf);
+          tr.appendChild(tdTime);
+          farmerTbody.appendChild(tr);
+
+          // Analytics Data
+          const isHealthy = String(rec.predicted_label || "").toLowerCase().includes("healthy");
+          if (isHealthy) {
+            healthy++;
+          } else {
+            diseased++;
+            const rawLabel = formatDiseaseLabel(rec.predicted_label);
+            diseaseCounts[rawLabel] = (diseaseCounts[rawLabel] || 0) + 1;
+          }
+
+          // Map Plotting
+          if (rec.lat && rec.lon) {
+             const color = isHealthy ? 'green' : 'red';
+             const circleMarker = L.circleMarker([rec.lat, rec.lon], {
+               color: color,
+               fillColor: color,
+               fillOpacity: 0.6,
+               radius: 8
+             });
+             circleMarker.bindPopup(`<b>${formatDiseaseLabel(rec.predicted_label)}</b><br/>${rec.region || "Unknown Location"}<br/>${rec.time}`);
+             markersLayer.addLayer(circleMarker);
+          }
+        });
+
+        document.getElementById("stat-total-scans").textContent = history.length;
+        document.getElementById("stat-healthy").textContent = healthy;
+        document.getElementById("stat-diseased").textContent = diseased;
+
+        // Render Chart
+        const ctx = document.getElementById("diseaseChart").getContext("2d");
+        if (chartInstance) {
+          chartInstance.destroy();
+        }
+
+        const labels = Object.keys(diseaseCounts);
+        const data = Object.values(diseaseCounts);
+
+        if (labels.length === 0) {
+            // Provide a dummy healthy pie if no disease
+            if (healthy > 0) {
+                labels.push("Healthy");
+                data.push(healthy);
+            }
+        }
+
+        chartInstance = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: [
+                "#e74c3c", "#3498db", "#f1c40f", "#9b59b6", "#e67e22", "#1abc9c", "#27ae60"
+              ],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                labels: { font: { family: "'Inter', sans-serif" } }
+              }
+            }
+          }
+        });
+      }
+
+      async function loadHistory() {
+        const res = await fetch("/api/history");
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        const data = await res.json();
+        renderHistory(data.history);
+        renderFarmerDashboard(data.history);
+      }
+
+      resetBtn.addEventListener("click", () => {
+        currentFile = null;
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        previewUrl = null;
+        fileInput.value = "";
+        selectedFilename.textContent = "None";
+        previewImg.style.display = "none";
+        origViz.style.display = "none";
+        heatmapViz.style.display = "none";
+        heatmapViz.src = "";
+        probabilitiesList.innerHTML = "";
+        predictedLabel.textContent = "-";
+        confidenceText.textContent = "0%";
+        predictedBadge.style.background = "rgba(214, 51, 132, 0.18)";
+        predictedBadge.style.borderColor = "rgba(214, 51, 132, 0.35)";
+        scientificName.textContent = "-";
+        severityLevel.textContent = "-";
+        symptomsEl.textContent = "-";
+        treatChemicalEl.textContent = "-";
+        treatOrganicEl.textContent = "-";
+        treatDosageEl.textContent = "-";
+        treatPreventiveEl.textContent = "-";
+        // History stays.
+      });
+
+      predictBtn.addEventListener("click", async () => {
+        if (!currentFile) {
+          alert("Please choose a leaf image first.");
+          return;
+        }
+
+        predictBtn.disabled = true;
+        const oldText = predictBtn.innerHTML;
+        predictBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Predicting...';
+
+        // Function to attempt getting coordinates
+        const getGeoLocation = () => {
+          return new Promise((resolve) => {
+            if (!navigator.geolocation) { resolve(null); return; }
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({lat: pos.coords.latitude, lon: pos.coords.longitude}),
+              () => resolve(null),
+              { timeout: 3000 }
+            );
+          });
+        };
+
+        try {
+          const formData = new FormData();
+          formData.append("file", currentFile);
+
+          const pos = await getGeoLocation();
+          if (pos) {
+            formData.append("lat", pos.lat);
+            formData.append("lon", pos.lon);
+            // Reverse geocode
+            try {
+               const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.lat}&longitude=${pos.lon}&localityLanguage=en`);
+               const geoData = await geoRes.json();
+               if (geoData.principalSubdivision) {
+                  formData.append("region", geoData.principalSubdivision + (geoData.countryName ? ", " + geoData.countryName : ""));
+               }
+            } catch(e) {}
+          }
+
+          const res = await fetch("/api/predict", { method: "POST", body: formData });
+          if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Prediction failed");
+
+          const details = data.details;
+
+          predictedLabel.textContent = formatDiseaseLabel(details.predicted_label);
+          confidenceText.textContent = details.confidence.toFixed(1) + "%";
+          document.querySelector(".confidence-hint").textContent =
+            confidenceHintFromPct(details.confidence || 0);
+
+          setBadge(details.predicted_label);
+          scientificName.textContent = details.disease_info.scientific_name || "N/A";
+          severityLevel.textContent = details.disease_info.severity_level || "Moderate";
+          symptomsEl.textContent = details.disease_info.symptoms || "-";
+          
+          treatChemicalEl.textContent = details.disease_info.treatment_chemical || "-";
+          treatOrganicEl.textContent = details.disease_info.treatment_organic || "-";
+          treatDosageEl.textContent = details.disease_info.treatment_dosage || "-";
+          treatPreventiveEl.textContent = details.disease_info.treatment_preventive || "-";
+
+          renderProbabilities(details.top_predictions || []);
+
+          if (details.heatmap_base64) {
+            heatmapViz.src = "data:image/png;base64," + details.heatmap_base64;
+            heatmapViz.style.display = "block";
+          }
+
+          // Refresh history table.
+          await loadHistory();
+        } catch (err) {
+          alert(err.message || "Prediction failed");
+        } finally {
+          predictBtn.disabled = false;
+          predictBtn.innerHTML = oldText;
+        }
+      });
+
+      // Initial history load
+      loadHistory();
+    </script>
+  </body>
+</html>
+
